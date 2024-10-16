@@ -1,4 +1,5 @@
 use macroquad::prelude::*;
+// use macroquad::window::quit;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Direction {
@@ -14,13 +15,36 @@ struct Snake {
 }
 
 impl Snake {
-    // Create a new snake with a single segment at some position
+    // Create a new snake with a single segment
+    // at some position
     fn new() -> Self {
+        let random_x = rand::gen_range(
+            0,
+            (screen_width() / 20f32)
+                as i32
+                * 20,
+        ) as f32;
+        let random_y = rand::gen_range(
+            0,
+            (screen_height() / 20f32)
+                as i32
+                * 20,
+        ) as f32;
+        let random_dir =
+            rand::gen_range(0, 4);
+        let direction = match random_dir
+        {
+            0 => Direction::Up,
+            1 => Direction::Down,
+            2 => Direction::Left,
+            3 => Direction::Right,
+            _ => Direction::Right,
+        };
         Self {
             body: vec![vec2(
-                100.0, 100.0,
+                random_x, random_y,
             )],
-            direction: Direction::Right,
+            direction,
         }
     }
 
@@ -151,27 +175,35 @@ struct Game {
 
     snake_size: f32,
     move_speed: f32,
+    score: i32,
+    starting_food_count: i32,
 }
 
 impl Game {
     fn new() -> Self {
         let snake_size = 20.0;
-        let move_speed = 20.0;
+        let move_speed = 10.0;
+        let score = 0;
+        let starting_food_count = 100;
 
         let snake = Snake::new();
-        let mut food =
-            vec![Food::new(snake_size)];
-        food.push(Food::new(
-            snake_size,
-        ));
-        food.push(Food::new(
-            snake_size,
-        ));
+
+        // create food
+        let mut food = vec![];
+        for _ in 0..starting_food_count
+        {
+            food.push(Food::new(
+                snake_size,
+            ));
+        }
+
         Self {
             snake,
             food,
             snake_size,
             move_speed,
+            score,
+            starting_food_count,
         }
     }
 
@@ -204,6 +236,14 @@ impl Game {
                     Direction::Right,
                 );
         }
+        if is_key_released(
+            KeyCode::Escape,
+        ) {
+            //close the game
+            // quit();
+            // exit(0);
+            std::process::exit(0);
+        }
     }
 
     fn update(&mut self) {
@@ -217,6 +257,7 @@ impl Game {
         for (i, food) in
             self.food.iter().enumerate()
         {
+            // snake eat food?
             if self
                 .snake
                 .body
@@ -232,6 +273,7 @@ impl Game {
                     .push(Food::new(
                         self.snake_size,
                     ));
+                self.score += 1;
             }
         }
 
@@ -251,6 +293,7 @@ impl Game {
         }
 
         // Check if snake is out of bounds
+        let mut reset = false;
         let head = self
             .snake
             .body
@@ -261,17 +304,15 @@ impl Game {
             || head.y < 0.0
             || head.y > screen_height()
         {
-            self.snake = Snake::new();
-            self.food =
-                vec![Food::new(
-                    self.snake_size,
-                )];
-            self.food.push(Food::new(
-                self.snake_size,
-            ));
-            self.food.push(Food::new(
-                self.snake_size,
-            ));
+            reset = true;
+        }
+
+        // reset score
+        if reset {
+            let new_game = Game::new();
+            self.snake = new_game.snake;
+            self.food = new_game.food;
+            self.score = new_game.score;
         }
     }
 
@@ -282,6 +323,18 @@ impl Game {
         for food in &self.food {
             food.draw(self.snake_size);
         }
+
+        // Draw the score
+        draw_text(
+            &format!(
+                "Score: {}",
+                self.score
+            ),
+            10.0,
+            20.0,
+            30.0,
+            WHITE,
+        );
     }
 }
 
