@@ -1,0 +1,6 @@
+# Set the maximum width of each line
+max_width = 40
+
+# Force function arguments to be on their own lines
+# if they exceed the max width
+fn_args_layout = "Vertical"
