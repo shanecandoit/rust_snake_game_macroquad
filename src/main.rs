@@ -1,8 +1,5 @@
 use macroquad::prelude::*;
 
-const SNAKE_SIZE: f32 = 20.0;
-const MOVE_SPEED: f32 = 20.0;
-
 #[derive(Clone, Copy, PartialEq)]
 enum Direction {
     Up,
@@ -24,14 +21,14 @@ impl Snake {
         }
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, move_speed: f32, snake_size: f32) {
         let mut new_head = *self.body.first().unwrap();
 
         match self.direction {
-            Direction::Up => new_head.y -= MOVE_SPEED,
-            Direction::Down => new_head.y += MOVE_SPEED,
-            Direction::Left => new_head.x -= MOVE_SPEED,
-            Direction::Right => new_head.x += MOVE_SPEED,
+            Direction::Up => new_head.y -= move_speed,
+            Direction::Down => new_head.y += move_speed,
+            Direction::Left => new_head.x -= move_speed,
+            Direction::Right => new_head.x += move_speed,
         }
 
         self.body.insert(0, new_head);
@@ -53,9 +50,9 @@ impl Snake {
         }
     }
 
-    fn draw(&self) {
+    fn draw(&self, snake_size: f32) {
         for segment in &self.body {
-            draw_rectangle(segment.x, segment.y, SNAKE_SIZE, SNAKE_SIZE, GREEN);
+            draw_rectangle(segment.x, segment.y, snake_size, snake_size, GREEN);
         }
     }
 }
@@ -65,35 +62,50 @@ struct Food {
 }
 
 impl Food {
-    fn new() -> Self {
+    fn new(snake_size: f32) -> Self {
         Self {
             position: vec2(
-                (rand::gen_range(0, screen_width() as i32 / SNAKE_SIZE as i32) * SNAKE_SIZE as i32) as f32,
-                (rand::gen_range(0, screen_height() as i32 / SNAKE_SIZE as i32) * SNAKE_SIZE as i32) as f32,
+                (rand::gen_range(0, screen_width() as i32 / snake_size as i32) * snake_size as i32)
+                    as f32,
+                (rand::gen_range(0, screen_height() as i32 / snake_size as i32) * snake_size as i32)
+                    as f32,
             ),
         }
     }
 
-    fn draw(&self) {
-        draw_rectangle(self.position.x, self.position.y, SNAKE_SIZE, SNAKE_SIZE, RED);
+    fn draw(&self, snake_size: f32) {
+        draw_rectangle(
+            self.position.x,
+            self.position.y,
+            snake_size,
+            snake_size,
+            RED,
+        );
     }
 }
 
 struct Game {
     snake: Snake,
     food: Vec<Food>,
+
+    snake_size: f32,
+    move_speed: f32,
 }
 
 impl Game {
     fn new() -> Self {
-        
-        let snake= Snake::new();
-        let mut food= vec![Food::new()];
-        food.push(Food::new());
-        food.push(Food::new());
+        let snake_size = 20.0;
+        let move_speed = 20.0;
+
+        let snake = Snake::new();
+        let mut food = vec![Food::new(snake_size)];
+        food.push(Food::new(snake_size));
+        food.push(Food::new(snake_size));
         Self {
             snake,
             food,
+            snake_size,
+            move_speed,
         }
     }
 
@@ -113,16 +125,16 @@ impl Game {
     }
 
     fn update(&mut self) {
-        self.snake.update();
+        self.snake.update(self.move_speed, self.snake_size);
 
         let mut new_food_positions = vec![];
-        let mut eaten_food_indices = vec![];
+        let mut eaten_food_indices: Vec<usize> = vec![];
 
         for (i, food) in self.food.iter().enumerate() {
-            if self.snake.body.first().unwrap().distance(food.position) < SNAKE_SIZE {
+            if self.snake.body.first().unwrap().distance(food.position) < self.snake_size {
                 self.snake.grow();
                 eaten_food_indices.push(i);
-                new_food_positions.push(Food::new());
+                new_food_positions.push(Food::new(self.snake_size));
             }
         }
 
@@ -135,13 +147,25 @@ impl Game {
         for new_food in new_food_positions {
             self.food.push(new_food);
         }
+
+        // Check if snake is out of bounds
+        if self.snake.body.first().unwrap().x < 0.0
+            || self.snake.body.first().unwrap().x > screen_width()
+            || self.snake.body.first().unwrap().y < 0.0
+            || self.snake.body.first().unwrap().y > screen_height()
+        {
+            self.snake = Snake::new();
+            self.food = vec![Food::new(self.snake_size)];
+            self.food.push(Food::new(self.snake_size));
+            self.food.push(Food::new(self.snake_size));
+        }
     }
 
     fn draw(&self) {
         clear_background(BLACK);
-        self.snake.draw();
+        self.snake.draw(self.snake_size);
         for food in &self.food {
-            food.draw();
+            food.draw(self.snake_size);
         }
     }
 }
@@ -161,7 +185,6 @@ async fn main() {
 }
 
 fn limit_fps(fps: u32) {
-    
     let minimum_frame_time = 1. / fps as f32; // 60 FPS
     let frame_time = get_frame_time();
     // println!("Frame time: {}ms", frame_time * 1000.);
